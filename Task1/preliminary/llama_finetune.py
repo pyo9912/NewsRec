@@ -9,6 +9,7 @@ from transformers import Trainer, TrainingArguments, TrainerState, TrainerContro
 import wandb
 
 from utils.parser import parse_args
+from utils.parser import checkPath
 
 """
 Unused imports:
@@ -40,17 +41,19 @@ from utils.prompter import Prompter
 #         # return {'accuracy': accuracy_score(labels, predictions)}
 
 class QueryEvalCallback(TrainerCallback):
-    def __init__(self, evaluator):
-        self.evaluator = evaluator
+    def __init__(self, log_name):
+        self.log_name = log_name
 
     def on_epoch_end(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, **kwargs):
-        # trainer = kwargs['trainer']
-        # logs = kwargs['logs']
-        model = kwargs['model']
+        # model = kwargs['model']
+        # epoch = state.epoch
+        # path = os.path.join(args.output_dir, self.log_name + '_E' + str(int(epoch)))
+        # os.makedirs(path)
+        # model.save_pretrained(path)
         print("==============================Evaluate step==============================")
         # predictions, labels = trainer.predict(trainer.eval_dataset)
         # print(predictions.size())
-        self.evaluator.test(model)
+        # self.evaluator.test(model)
         # print(kwargs)
         print("==============================End of evaluate step==============================")
 
@@ -93,6 +96,7 @@ def llama_finetune(
         prompt_template_name: str = "alpaca",  # The prompt template to use, will default to alpaca.
 ):
     output_dir = os.path.join(args.home,"lora-alpaca")
+    checkPath(output_dir)
     base_model = args.base_model
     batch_size = args.batch_size
     gradient_accumulation_steps = args.num_device  # update the model's weights once every gradient_accumulation_steps batches instead of updating the weights after every batch.
@@ -100,14 +104,20 @@ def llama_finetune(
     prompt_template_name = "alpaca_legacy"
     
     checkpoint_dir = os.path.join(args.home,"lora-alpaca")
-    all_files = os.listdir(checkpoint_dir)
-    # print(all_files)
-    all_files = [f for f in all_files if "checkpoint" in f]
-    all_files.sort(key=lambda x: os.path.getmtime(os.path.join(checkpoint_dir, x)), reverse=True)
-    # print(all_files)
-    most_recent_checkpoint = os.path.join(checkpoint_dir, all_files[0])
-    resume_from_checkpoint = most_recent_checkpoint
-    # print(resume_from_checkpoint)
+    if not checkpoint_dir:
+        resume_from_checkpoint = None
+    else:
+        all_files = os.listdir(checkpoint_dir)
+        # print(all_files)
+        all_files = [f for f in all_files if "checkpoint" in f]
+        if not all_files:
+            resume_from_checkpoint = None
+        else:
+            all_files.sort(key=lambda x: os.path.getmtime(os.path.join(checkpoint_dir, x)), reverse=True)
+            # print(all_files)
+            most_recent_checkpoint = os.path.join(checkpoint_dir, all_files[0])
+            resume_from_checkpoint = most_recent_checkpoint
+            # print(resume_from_checkpoint)
 
     if int(os.environ.get("LOCAL_RANK", 0)) == 0:
         print(
@@ -230,7 +240,7 @@ def llama_finetune(
         return tokenized_full_prompt
 
     # quantization_config = BitsAndBytesConfig(llm_int8_enable_fp32_cpu_offload=True)
-    # if data_path.endswith(".json") or data_path.endswith(".jsonl"):
+    # if data_path.endswith(".json") or data_path.endswith(".jsonl"):data
     #     data = load_dataset("json", data_files=data_path)
     # else:
     #     data = load_dataset(data_path)
@@ -282,7 +292,7 @@ def llama_finetune(
         task_type="CAUSAL_LM",
     )
     model = get_peft_model(model, config)
-
+    resume_from_checkpoint = None
     if resume_from_checkpoint:
         # Check the available weights and load them
         checkpoint_name = os.path.join(
@@ -300,14 +310,6 @@ def llama_finetune(
             print(f"Restarting from {checkpoint_name}")
             adapters_weights = torch.load(checkpoint_name)
             set_peft_model_state_dict(model, adapters_weights)
-            ## todo!!!!!!!
-            # # Get current step
-            # training_args_file = os.path.join(
-            #     resume_from_checkpoint, "training_args.bin"
-            # )
-            # training_args = TrainingArguments.load(training_args_file)
-            # current_step = training_args.total_steps
-            # print(f"Current training step: {current_step}")
         else:
             print(f"Checkpoint {checkpoint_name} not found")
 
@@ -317,7 +319,8 @@ def llama_finetune(
         # keeps Trainer from trying its own DataParallelism when more than 1 gpu is available
         model.is_parallelizable = True
         model.model_parallel = True
-
+    print(type(train_data))
+    if args.debug: train_data, val_data = train_data.select(range(100)), val_data
     trainer = Trainer(
         model=model,
         train_dataset=train_data,
@@ -360,7 +363,7 @@ def llama_finetune(
     if torch.__version__ >= "2" and sys.platform != "win32":
         model = torch.compile(model)
 
-    trainer.train(resume_from_checkpoint=resume_from_checkpoint)
+    trainer.train(resume_from_checkpoint=None)
 
     model.save_pretrained(output_dir)
 

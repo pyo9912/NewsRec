@@ -87,9 +87,9 @@ def evaluate(gen_seq, answer, log_file):
 
 
 if __name__ == '__main__':
-    
 
     args = parse_args()
+    os.environ["CUDA_VISIBLE_DEVICES"]=args.device_id
     
     mdhm = str(datetime.now(timezone('Asia/Seoul')).strftime('%m%d%H%M%S'))
     result_path = os.path.join(args.output_dir, args.base_model.replace('/', '-'))
@@ -119,5 +119,6 @@ if __name__ == '__main__':
         evaluator = LLaMaEvaluator(args=args, tokenizer=tokenizer, instructions=instructions, labels=labels)
         if 'train' in args.mode:
             llama_finetune(args=args, evaluator=evaluator, tokenizer=tokenizer, instructions=instructions, labels=labels)
+            evaluator.test()
         if 'test' == args.mode:
             evaluator.test()

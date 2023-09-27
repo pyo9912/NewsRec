@@ -32,16 +32,25 @@ news_train = pd.read_csv(os.path.join(MIND_large_train,"news.tsv"),
 ## 딕셔너리 만들기
 newsList = []
 newsIDs = news_train[0].values.tolist()
+newsCat = news_train[1].values.tolist()
+newsSubcat = news_train[2].values.tolist()
 newsTitles = news_train[3].values.tolist()
 
 for i in range(len(newsIDs)):
-    dict = {newsIDs[i]:newsTitles[i]}
+    dict = {
+        "ID":newsIDs[i],
+        "Title":newsTitles[i],
+        "Category":newsCat[i],
+        "SubCategory":newsSubcat[i]
+    }
+    # dict = {newsIDs[i]:newsTitles[i]}
     newsList.append(dict)
 
 
 
 ## json 파일에 쓰기
-file_path = "./newsData.json"
+file_path = "./allNewsData.json"
+# file_path = "./newsData.json"
 
 with open(file_path, 'w', encoding='utf-8') as file:
     json.dump(newsList, file, indent="\t")

@@ -2,6 +2,7 @@ import json
 from typing import Union
 import os
 
+from utils.parser import checkPath
 
 class Prompter(object):
     __slots__ = ("template", "_verbose")
@@ -14,6 +15,7 @@ class Prompter(object):
         file_name = os.path.join(args.home, f"Task{args.task}", "templates", f"{template_name}.json")
         # if not osp.exists(file_name):
         #     raise ValueError(f"Can't read {file_name}")
+        checkPath(file_name)
         with open(file_name) as fp:
             self.template = json.load(fp)
         if self._verbose:

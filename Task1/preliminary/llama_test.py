@@ -1,3 +1,4 @@
+import os
 import json
 import sys
 import torch
@@ -50,10 +51,13 @@ class LLaMaEvaluator:
     def prepare_model(self,
                       base_model: str = "",
                       load_8bit: bool = False,
-                      lora_weights: str = "tloen/alpaca-lora-7b",
+                      lora_weights: str = "",
                       server_name: str = "0.0.0.0",  # Allows to listen on all interfaces by providing '0.
                       share_gradio: bool = False, ):
         print('prepare new model for evaluating')
+        if self.args.lora_weights != "":
+            lora_weights = self.args.lora_weights
+
         base_model = self.args.base_model
         assert (
             base_model
@@ -65,18 +69,33 @@ class LLaMaEvaluator:
                 load_in_8bit=load_8bit,
                 torch_dtype=torch.float16,
                 device_map='auto'
-            )  # .to(self.args.device_id)
-
+            ) #.to(self.args.device_id)
+            checkpoint_dir = os.path.join(self.args.home,"lora-alpaca")
+            if not checkpoint_dir:
+                resume_from_checkpoint = None
+            else:
+                all_files = os.listdir(checkpoint_dir)
+                print(all_files)
+                all_files = [f for f in all_files if "checkpoint" in f]
+                if not all_files:
+                    resume_from_checkpoint = None
+                else:
+                    all_files.sort(key=lambda x: os.path.getmtime(os.path.join(checkpoint_dir, x)), reverse=True)
+                    print(all_files)
+                    most_recent_checkpoint = os.path.join(checkpoint_dir, all_files[0])
+                    resume_from_checkpoint = most_recent_checkpoint
+                    print(resume_from_checkpoint)
             # todo: For evaluating the PEFT model
-            # model = PeftModel.from_pretrained(
-            #     model,
-            #     lora_weights,
-            #     torch_dtype=torch.float16,
-            # )
+            model = PeftModel.from_pretrained(
+                model,
+                resume_from_checkpoint,
+                torch_dtype=torch.float16,
+            )
         else:
             model = LlamaForCausalLM.from_pretrained(
                 base_model, device_map={"": device}, low_cpu_mem_usage=True
             )
+            
             model = PeftModel.from_pretrained(
                 model,
                 lora_weights,
@@ -96,7 +115,6 @@ class LLaMaEvaluator:
         self.tokenizer.padding_side = 'left'
 
         instructions = [self.prompter.generate_prompt(i) for i in self.instructions]
-        # print(instructions[0])
         instruction_dataset = Textdataset(self.args, instructions, self.labels, self.tokenizer)
         dataloader = DataLoader(instruction_dataset, batch_size=self.args.eval_batch_size, shuffle=False)
 
@@ -107,11 +125,11 @@ class LLaMaEvaluator:
                  attention_mask,
                  model,
                  input=None,
-                 temperature=0.1, # 0.1
-                 top_p=0.75, # 0.75
-                 top_k=40, # 40
-                 num_beams=1,  # todo: beam 1개로 바꿔보기
-                 max_new_tokens=20, # 50
+                 temperature=0.1,
+                 top_p=0.75,
+                 top_k=40,
+                 num_beams=4,  # todo: beam 1개로 바꿔보기
+                 max_new_tokens=50,
                  **kwargs):
         generation_config = GenerationConfig(
             temperature=temperature,
@@ -128,15 +146,14 @@ class LLaMaEvaluator:
                 generation_config=generation_config,
                 return_dict_in_generate=True,
                 output_scores=True,
-                # do_sample=True,
                 max_new_tokens=max_new_tokens,
             )
         s = generation_output.sequences
         output = self.tokenizer.batch_decode(s, skip_special_tokens=True)
         return [self.prompter.get_response(i) for i in output]
-        # return output
 
     def test(self, model=None):
+
         if model is None:
             model = self.prepare_model()
 
@@ -144,7 +161,7 @@ class LLaMaEvaluator:
         if torch.__version__ >= "2" and sys.platform != "win32":
             model = torch.compile(model)
 
-        hit, cnt = 0.0, 0.0
+        cat_hit, sub_hit, hit, cnt = 0.0, 0.0, 0.0, 0.0
 
         for batch in tqdm(self.dataloader, bar_format=' {percentage:3.0f} % | {bar:23} {r_bar}'):
             generated_results = []
@@ -157,33 +174,39 @@ class LLaMaEvaluator:
             # print("Instruction:", instruction)
             # print("Response:", response)
             # print("#################################################")
-            generated_results.extend(responses)
+            # generated_results.extend(responses)
             for output, label in zip(responses, labels):
-                ## todo: eval code
-                # print(output)
-                # print(label)
+                ### Mapping
+                output_words = output.split('|')
+                if len(output_words) == 2:
+                    output_cat = output_words[0]
+                    output_subcat = output_words[1]
+                else:
+                    output_cat = output_subcat = output_words[0]
+                label_words = label.split('|')
+                if len(label_words) == 2:
+                    label_cat = label_words[0]
+                    label_subcat = label_words[1]
+                else:
+                    label_cat = label_subcat = label_words[0]
 
-                if label.lower() in output.lower():
-                     hit += 1.0
+                ### Scoring
+                if label_cat.lower() == output_cat.lower() and label_subcat.lower() == output_subcat.lower():
+                    hit += 1.0
+
+                elif label_cat.lower() == output_cat.lower():
+                    cat_hit += 1.0
+                
+                elif label_subcat.lower() == output_subcat.lower():
+                    sub_hit += 1.0
+
                 cnt += 1.0
-
-                # title = output.split('"')[-2]
-                # # print(title)
-                # if title == label:
-                #     hit += 1.0
-                # cnt += 1.0
-
-                # movie_name = label.replace('(', ')').split(')')[1].strip().lower()
-                # if 'example' in self.args.rq_num:
-                #     check_response = output[output.lower().find("answer:"):].lower()
-                # else:
-                #     check_response = output
-                # if movie_name in check_response.lower():
-                #     hit += 1.0
-                # cnt += 1.0
+                
+                cat_hit_ratio = cat_hit / cnt
+                sub_hit_ratio = sub_hit / cnt
                 hit_ratio = hit / cnt
                 # args.log_file.write(json.dumps({'GEN': output, 'ANSWER': label, 'AVG_HIT': hit_ratio}, ensure_ascii=False) + '\n')
-                generated_results.append({'GEN': output, 'ANSWER': label, 'AVG_HIT': hit_ratio})
+                generated_results.append({'GEN': output, 'ANSWER': label, 'CAT_HIT': cat_hit_ratio, 'SUB_HIT': sub_hit_ratio, 'AVG_HIT': hit_ratio})
 
             if self.args.write:
                 for i in generated_results:
