@@ -18,7 +18,7 @@ def parse_args():
     parser.add_argument('--max_input_length', type=int, default=200)
     parser.add_argument('--device_id', type=str, default='0')
     parser.add_argument('--base_model', type=str, default='meta-llama/Llama-2-7b-chat-hf',
-                        choices=['meta-llama/Llama-2-7b-hf', 'meta-llama/Llama-2-13b-hf', 'meta-llama/Llama-2-7b-chat-hf', 'gpt-3.5-turbo'])
+                        choices=['meta-llama/Llama-2-7b-hf', 'meta-llama/Llama-2-13b-hf', 'meta-llama/Llama-2-7b-chat-hf', 'meta-llama/Llama-2-13b-chat-hf', 'gpt-3.5-turbo'])
     parser.add_argument('--model_name', type=str, default='llama')
     parser.add_argument("--lora_weights", type=str, default='')
     parser.add_argument('--log_file', type=str, default='')
@@ -29,11 +29,11 @@ def parse_args():
     parser.add_argument('--log_name', type=str, default='MYTEST')
     parser.add_argument("--write", action='store_true', help="Whether to write of results.")
 
-    parser.add_argument('--mode', type=str, default='test', choices=['train', 'test'])
+    parser.add_argument('--mode', type=str, default='train', choices=['train', 'test'])
     parser.add_argument('--home', type=str, default='./')
     parser.add_argument('--time', type=str, default='0000-00-00_000000')
     
-    parser.add_argument('--rq_num', type=str, default='1')
+    parser.add_argument('--rq_num', type=str, default='3')
     parser.add_argument('--task', type=str, default='1', choices=['1', '2'])
 
     

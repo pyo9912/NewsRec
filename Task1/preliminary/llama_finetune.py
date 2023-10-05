@@ -45,11 +45,11 @@ class QueryEvalCallback(TrainerCallback):
         self.log_name = log_name
 
     def on_epoch_end(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, **kwargs):
-        # model = kwargs['model']
-        # epoch = state.epoch
-        # path = os.path.join(args.output_dir, self.log_name + '_E' + str(int(epoch)))
-        # os.makedirs(path)
-        # model.save_pretrained(path)
+        model = kwargs['model']
+        epoch = state.epoch
+        path = os.path.join(args.output_dir, self.log_name + '_E' + str(int(epoch)))
+        checkPath(path)
+        model.save_pretrained(path)
         print("==============================Evaluate step==============================")
         # predictions, labels = trainer.predict(trainer.eval_dataset)
         # print(predictions.size())
@@ -71,8 +71,8 @@ def llama_finetune(
         output_dir: str = "",
         # training hyperparams
         batch_size: int = 128,
-        num_epochs: int = 3,
-        learning_rate: float = 3e-4,
+        num_epochs: int = 3, # 3
+        learning_rate: float = 3e-5,
         cutoff_len: int = 256,
         val_set_size: int = 0,
         # lora hyperparams
@@ -349,7 +349,7 @@ def llama_finetune(
         data_collator=transformers.DataCollatorForSeq2Seq(
             tokenizer, pad_to_multiple_of=8, return_tensors="pt", padding=True
         ),
-        callbacks=[QueryEvalCallback(evaluator)]
+        callbacks=[QueryEvalCallback(args.log_name)]
     )
     model.config.use_cache = False
 

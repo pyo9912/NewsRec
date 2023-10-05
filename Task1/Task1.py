@@ -87,7 +87,6 @@ def evaluate(gen_seq, answer, log_file):
 
 
 if __name__ == '__main__':
-
     args = parse_args()
     os.environ["CUDA_VISIBLE_DEVICES"]=args.device_id
     

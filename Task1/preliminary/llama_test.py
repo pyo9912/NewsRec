@@ -4,6 +4,7 @@ import sys
 import torch
 import wandb
 from torch.utils.data import Dataset, DataLoader
+from torch.utils.data.sampler import SubsetRandomSampler
 from tqdm import tqdm
 from transformers import GenerationConfig, LlamaForCausalLM, LlamaTokenizer
 from peft import PeftModel
@@ -75,7 +76,7 @@ class LLaMaEvaluator:
                 resume_from_checkpoint = None
             else:
                 all_files = os.listdir(checkpoint_dir)
-                print(all_files)
+                # print(all_files)
                 all_files = [f for f in all_files if "checkpoint" in f]
                 if not all_files:
                     resume_from_checkpoint = None
@@ -114,9 +115,13 @@ class LLaMaEvaluator:
     def prepare_dataloader(self):
         self.tokenizer.padding_side = 'left'
 
+        # Sampler for test data
+        indices = list(range(0,20305))
+        sampler = SubsetRandomSampler(indices)
+
         instructions = [self.prompter.generate_prompt(i) for i in self.instructions]
         instruction_dataset = Textdataset(self.args, instructions, self.labels, self.tokenizer)
-        dataloader = DataLoader(instruction_dataset, batch_size=self.args.eval_batch_size, shuffle=False)
+        dataloader = DataLoader(instruction_dataset, batch_size=self.args.eval_batch_size, shuffle=False, sampler=sampler)
 
         return dataloader
 
@@ -153,7 +158,6 @@ class LLaMaEvaluator:
         return [self.prompter.get_response(i) for i in output]
 
     def test(self, model=None):
-
         if model is None:
             model = self.prepare_model()
 
@@ -176,37 +180,44 @@ class LLaMaEvaluator:
             # print("#################################################")
             # generated_results.extend(responses)
             for output, label in zip(responses, labels):
+                    
+                # if label.lower() in output.lower():
+                #     hit += 1.0
+                # cnt += 1.0
+                # hit_ratio = hit / cnt
+                # # args.log_file.write(json.dumps({'GEN': output, 'ANSWER': label, 'AVG_HIT': hit_ratio}, ensure_ascii=False) + '\n')
+                # # generated_results.append({'GEN': output, 'ANSWER': label, 'AVG_HIT': hit_ratio})
+                # generated_results.append({'GEN': output, 'ANSWER': label, 'CAT_HIT' : cat_hit_ratio, 'SUB_HIT' : sub_hit_ratio, 'AVG_HIT': hit_ratio})
+                
+
                 ### Mapping
-                output_words = output.split('|')
-                if len(output_words) == 2:
-                    output_cat = output_words[0]
-                    output_subcat = output_words[1]
-                else:
-                    output_cat = output_subcat = output_words[0]
-                label_words = label.split('|')
-                if len(label_words) == 2:
-                    label_cat = label_words[0]
-                    label_subcat = label_words[1]
-                else:
-                    label_cat = label_subcat = label_words[0]
+                cat_gen = output.replace('<','>').split('>')[1].strip().lower()
+                sub_gen = output.replace('<','>').split('>')[3].strip().lower()
+                cat_lab = label.replace('<','>').split('>')[1].strip().lower()
+                sub_lab = label.replace('<','>').split('>')[3].strip().lower()
+                
 
                 ### Scoring
-                if label_cat.lower() == output_cat.lower() and label_subcat.lower() == output_subcat.lower():
+                if cat_gen == cat_lab and sub_gen == sub_lab:
+                    cat_hit += 1.0
+                    sub_hit += 1.0
                     hit += 1.0
 
-                elif label_cat.lower() == output_cat.lower():
+                elif cat_gen == cat_lab:
                     cat_hit += 1.0
                 
-                elif label_subcat.lower() == output_subcat.lower():
+                elif sub_gen == sub_lab:
                     sub_hit += 1.0
 
                 cnt += 1.0
                 
                 cat_hit_ratio = cat_hit / cnt
                 sub_hit_ratio = sub_hit / cnt
+                
                 hit_ratio = hit / cnt
                 # args.log_file.write(json.dumps({'GEN': output, 'ANSWER': label, 'AVG_HIT': hit_ratio}, ensure_ascii=False) + '\n')
-                generated_results.append({'GEN': output, 'ANSWER': label, 'CAT_HIT': cat_hit_ratio, 'SUB_HIT': sub_hit_ratio, 'AVG_HIT': hit_ratio})
+                # generated_results.append({'GEN': output, 'ANSWER': label, 'AVG_HIT': hit_ratio})
+                generated_results.append({'GEN': output, 'ANSWER': label, 'CAT_HIT' : cat_hit_ratio, 'SUB_HIT' : sub_hit_ratio, 'AVG_HIT': hit_ratio})
 
             if self.args.write:
                 for i in generated_results:
