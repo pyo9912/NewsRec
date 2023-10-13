@@ -36,12 +36,13 @@ class Textdataset(Dataset):
 
 
 class LLaMaEvaluator:
-    def __init__(self, args, tokenizer, instructions: list = None, labels: list = None, prompt_template: str = ""):
+    def __init__(self, args, tokenizer, restrict_decode_vocab, instructions: list = None, labels: list = None, prompt_template: str = ""):
         self.args = args
         self.instructions = instructions
         self.labels = labels
         self.tokenizer = tokenizer  # , LlamaTokenizer.from_pretrained(self.args.base_model)
         self.prompter = Prompter(args, prompt_template)
+        self.restrict_decode_vocab = restrict_decode_vocab
 
         self.dataloader = self.prepare_dataloader()
         # self.model = self.prepare_model()
@@ -65,6 +66,7 @@ class LLaMaEvaluator:
         ), "Please specify a --base_model, e.g. --base_model='huggyllama/llama-7b'"
 
         if device == "cuda":
+            print("check")
             model = LlamaForCausalLM.from_pretrained(
                 base_model,
                 load_in_8bit=load_8bit,
@@ -77,7 +79,7 @@ class LLaMaEvaluator:
             else:
                 all_files = os.listdir(checkpoint_dir)
                 # print(all_files)
-                all_files = [f for f in all_files if "checkpoint" in f]
+                all_files = [f for f in all_files if "RQ6_E0" in f]
                 if not all_files:
                     resume_from_checkpoint = None
                 else:
@@ -116,7 +118,7 @@ class LLaMaEvaluator:
         self.tokenizer.padding_side = 'left'
 
         # Sampler for test data
-        indices = list(range(0,20305))
+        indices = list(range(0,1000))
         sampler = SubsetRandomSampler(indices)
 
         instructions = [self.prompter.generate_prompt(i) for i in self.instructions]
@@ -151,6 +153,7 @@ class LLaMaEvaluator:
                 generation_config=generation_config,
                 return_dict_in_generate=True,
                 output_scores=True,
+                prefix_allowed_tokens_fn = self.restrict_decode_vocab,
                 max_new_tokens=max_new_tokens,
             )
         s = generation_output.sequences
@@ -180,44 +183,53 @@ class LLaMaEvaluator:
             # print("#################################################")
             # generated_results.extend(responses)
             for output, label in zip(responses, labels):
-                    
-                # if label.lower() in output.lower():
+                # output = str(output)
+                # label = str(label)
+                # if output == label:
                 #     hit += 1.0
                 # cnt += 1.0
                 # hit_ratio = hit / cnt
                 # # args.log_file.write(json.dumps({'GEN': output, 'ANSWER': label, 'AVG_HIT': hit_ratio}, ensure_ascii=False) + '\n')
                 # # generated_results.append({'GEN': output, 'ANSWER': label, 'AVG_HIT': hit_ratio})
-                # generated_results.append({'GEN': output, 'ANSWER': label, 'CAT_HIT' : cat_hit_ratio, 'SUB_HIT' : sub_hit_ratio, 'AVG_HIT': hit_ratio})
-                
-
-                ### Mapping
-                cat_gen = output.replace('<','>').split('>')[1].strip().lower()
-                sub_gen = output.replace('<','>').split('>')[3].strip().lower()
-                cat_lab = label.replace('<','>').split('>')[1].strip().lower()
-                sub_lab = label.replace('<','>').split('>')[3].strip().lower()
-                
-
-                ### Scoring
-                if cat_gen == cat_lab and sub_gen == sub_lab:
-                    cat_hit += 1.0
-                    sub_hit += 1.0
-                    hit += 1.0
-
-                elif cat_gen == cat_lab:
-                    cat_hit += 1.0
-                
-                elif sub_gen == sub_lab:
-                    sub_hit += 1.0
-
-                cnt += 1.0
-                
-                cat_hit_ratio = cat_hit / cnt
-                sub_hit_ratio = sub_hit / cnt
-                
-                hit_ratio = hit / cnt
-                # args.log_file.write(json.dumps({'GEN': output, 'ANSWER': label, 'AVG_HIT': hit_ratio}, ensure_ascii=False) + '\n')
                 # generated_results.append({'GEN': output, 'ANSWER': label, 'AVG_HIT': hit_ratio})
-                generated_results.append({'GEN': output, 'ANSWER': label, 'CAT_HIT' : cat_hit_ratio, 'SUB_HIT' : sub_hit_ratio, 'AVG_HIT': hit_ratio})
+                
+                if '<' in label:
+                    ### Mapping 
+                    cat_lab = label.replace('<','>').split('>')[1].strip().lower()
+                    sub_lab = label.replace('<','>').split('>')[3].strip().lower()
+                    # id_lab = label.replace('<','>').split('>')[5].strip().lower()
+                    
+
+                    ### Scoring
+                    if cat_lab in output and sub_lab in output:
+                        cat_hit += 1.0
+                        sub_hit += 1.0
+                        hit += 1.0
+
+                    elif cat_lab in output:
+                        cat_hit += 1.0
+                    
+                    elif sub_lab in output:
+                        sub_hit += 1.0
+
+                    cnt += 1.0
+                    
+                    cat_hit_ratio = cat_hit / cnt
+                    sub_hit_ratio = sub_hit / cnt
+                    
+                    hit_ratio = hit / cnt
+                    # args.log_file.write(json.dumps({'GEN': output, 'ANSWER': label, 'AVG_HIT': hit_ratio}, ensure_ascii=False) + '\n')
+                    # generated_results.append({'GEN': output, 'ANSWER': label, 'AVG_HIT': hit_ratio})
+                    generated_results.append({'GEN': output, 'ANSWER': label, 'CAT_HIT' : cat_hit_ratio, 'SUB_HIT' : sub_hit_ratio, 'AVG_HIT': hit_ratio})
+                else:
+                
+                    if label.lower() in output.lower():
+                        hit += 1.0
+                    cnt += 1.0
+                    hit_ratio = hit / cnt
+                    # args.log_file.write(json.dumps({'GEN': output, 'ANSWER': label, 'AVG_HIT': hit_ratio}, ensure_ascii=False) + '\n')
+                    # generated_results.append({'GEN': output, 'ANSWER': label, 'AVG_HIT': hit_ratio})
+                    generated_results.append({'GEN': output, 'ANSWER': label, 'AVG_HIT': hit_ratio})
 
             if self.args.write:
                 for i in generated_results:

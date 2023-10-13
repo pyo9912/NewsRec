@@ -33,7 +33,7 @@ def parse_args():
     parser.add_argument('--home', type=str, default='./')
     parser.add_argument('--time', type=str, default='0000-00-00_000000')
     
-    parser.add_argument('--rq_num', type=str, default='3')
+    parser.add_argument('--rq_num', type=str, default='1')
     parser.add_argument('--task', type=str, default='1', choices=['1', '2'])
 
     
@@ -69,5 +69,5 @@ def checkPath(*args):
 def init_dir(args):
     system_os = platform.platform()
     if "Linux" in system_os:
-        args.home = "/home/user/junpyo_king/NewsRec"
+        args.home = "/home/user/junpyo/NewsRec"
     return args

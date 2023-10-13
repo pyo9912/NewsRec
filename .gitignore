@@ -127,6 +127,7 @@ examples/jax/jax-llm/proteins-base/
 *.txt
 *.yaml
 *.wandb
+*.bin
 
 Task1/result/*
 Task2/result/*

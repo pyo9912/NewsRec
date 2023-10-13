@@ -10,10 +10,10 @@ MIND_large_train = MIND_Large + "/train"
 MIND_large_valid = MIND_Large + "/dev"
 MIND_large_test = MIND_Large + "/test"
 
-MIND_small = data_path + "/small"
-MIND_small_train = MIND_small + "/train"
-MIND_small_valid = MIND_small + "/dev"
-MIND_small_test = MIND_small + "/test"
+# MIND_small = data_path + "/small"
+# MIND_small_train = MIND_small + "/train"
+# MIND_small_valid = MIND_small + "/dev"
+# MIND_small_test = MIND_small + "/test"
 
 # news.tsv
 # Columns: nid, cat, subcat, title, abstract, URL, Title Entities, Abstract Entites
@@ -21,8 +21,8 @@ MIND_small_test = MIND_small + "/test"
 # news_with_body.tsv
 # Columns: nid, cat, subcat, title, abstract, URL, Title Entities, Abstract Entities, Body
 
-news_train = pd.read_csv(os.path.join(MIND_large_train,"news.tsv"),
-                         error_bad_lines=False,
+news_train = pd.read_csv(os.path.join(MIND_large_train,"news_with_body.tsv"),
+                         on_bad_lines='skip',
                          header=None,
                          sep='\t')
 
@@ -35,13 +35,15 @@ newsIDs = news_train[0].values.tolist()
 newsCat = news_train[1].values.tolist()
 newsSubcat = news_train[2].values.tolist()
 newsTitles = news_train[3].values.tolist()
+newsBody = news_train[8].values.tolist()
 
 for i in range(len(newsIDs)):
     dict = {
         "ID":newsIDs[i],
         "Title":newsTitles[i],
         "Category":newsCat[i],
-        "SubCategory":newsSubcat[i]
+        "SubCategory":newsSubcat[i],
+        "Body":newsBody[i]
     }
     # dict = {newsIDs[i]:newsTitles[i]}
     newsList.append(dict)

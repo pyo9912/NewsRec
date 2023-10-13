@@ -115,9 +115,27 @@ if __name__ == '__main__':
     if 'llama' in args.base_model.lower():
         tokenizer = LlamaTokenizer.from_pretrained(args.base_model)
 
-        evaluator = LLaMaEvaluator(args=args, tokenizer=tokenizer, instructions=instructions, labels=labels)
+        ### Restrict decode vocab
+        SPIECE_UNDERLINE = "▁"
+        INT_TOKEN_IDS = []
+        for token, id in tokenizer.get_vocab().items():
+            if token[0] == SPIECE_UNDERLINE:
+                if token[1:].isdigit():
+                    INT_TOKEN_IDS.append(id)
+            if token == SPIECE_UNDERLINE:
+                INT_TOKEN_IDS.append(id)
+            elif token.isdigit():
+                INT_TOKEN_IDS.append(id)
+        INT_TOKEN_IDS.append(tokenizer.eos_token_id)
+
+
+        def restrict_decode_vocab(batch_idx, prefix_beam):
+            return INT_TOKEN_IDS
+        ###
+
+        evaluator = LLaMaEvaluator(args=args, tokenizer=tokenizer, restrict_decode_vocab=restrict_decode_vocab, instructions=instructions, labels=labels)
         if 'train' in args.mode:
             llama_finetune(args=args, evaluator=evaluator, tokenizer=tokenizer, instructions=instructions, labels=labels)
-            evaluator.test()
+            # evaluator.test()
         if 'test' == args.mode:
             evaluator.test()
