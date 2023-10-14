@@ -2,7 +2,7 @@ import os
 
 import wandb
 from tqdm import tqdm
-from transformers import AutoTokenizer, AutoModelForCausalLM, LlamaTokenizer
+from transformers import AutoTokenizer, AutoModelForCausalLM, LlamaTokenizer, T5Tokenizer
 import transformers
 import torch
 import json
@@ -13,8 +13,7 @@ from datetime import datetime
 from pytz import timezone
 
 # from chatgpt_test import chatgpt_test
-from preliminary.llama_finetune import llama_finetune
-from preliminary.llama_test import LLaMaEvaluator
+
 from utils.data import read_data
 from utils.parser import parse_args
 
@@ -88,7 +87,7 @@ def evaluate(gen_seq, answer, log_file):
 
 if __name__ == '__main__':
     args = parse_args()
-    os.environ["CUDA_VISIBLE_DEVICES"]=args.device_id
+    # os.environ["CUDA_VISIBLE_DEVICES"]=args.device_id
     
     mdhm = str(datetime.now(timezone('Asia/Seoul')).strftime('%m%d%H%M%S'))
     result_path = os.path.join(args.output_dir, args.base_model.replace('/', '-'))
@@ -112,30 +111,61 @@ if __name__ == '__main__':
     # if 'gpt' in args.base_model.lower():
     #     chatgpt_test(args=args, instructions=instructions, labels=labels)
 
+    # ### Restrict decode vocab
+    # SPIECE_UNDERLINE = "▁"
+    # INT_TOKEN_IDS = []
+    # for token, id in tokenizer.get_vocab().items():
+    #     if token[0] == SPIECE_UNDERLINE:
+    #         if token[1:].isdigit():
+    #             INT_TOKEN_IDS.append(id)
+    #     if token == SPIECE_UNDERLINE:
+    #         INT_TOKEN_IDS.append(id)
+    #     elif token.isdigit():
+    #         INT_TOKEN_IDS.append(id)
+    # INT_TOKEN_IDS.append(tokenizer.eos_token_id)
+
+
+    # def restrict_decode_vocab(batch_idx, prefix_beam):
+    #     return INT_TOKEN_IDS
+    # ###
+    
     if 'llama' in args.base_model.lower():
+        from preliminary.llama_finetune import llama_finetune
+        from preliminary.llama_test import LLaMaEvaluator
         tokenizer = LlamaTokenizer.from_pretrained(args.base_model)
 
-        ### Restrict decode vocab
-        SPIECE_UNDERLINE = "▁"
-        INT_TOKEN_IDS = []
-        for token, id in tokenizer.get_vocab().items():
-            if token[0] == SPIECE_UNDERLINE:
-                if token[1:].isdigit():
-                    INT_TOKEN_IDS.append(id)
-            if token == SPIECE_UNDERLINE:
-                INT_TOKEN_IDS.append(id)
-            elif token.isdigit():
-                INT_TOKEN_IDS.append(id)
-        INT_TOKEN_IDS.append(tokenizer.eos_token_id)
+        evaluator = LLaMaEvaluator(args=args, tokenizer=tokenizer, restrict_decode_vocab=None, instructions=instructions, labels=labels)
 
-
-        def restrict_decode_vocab(batch_idx, prefix_beam):
-            return INT_TOKEN_IDS
-        ###
-
-        evaluator = LLaMaEvaluator(args=args, tokenizer=tokenizer, restrict_decode_vocab=restrict_decode_vocab, instructions=instructions, labels=labels)
         if 'train' in args.mode:
             llama_finetune(args=args, evaluator=evaluator, tokenizer=tokenizer, instructions=instructions, labels=labels)
             # evaluator.test()
         if 'test' == args.mode:
             evaluator.test()
+
+    elif 'google' in args.base_model.lower():  # llama, google
+        from preliminary.t5_finetune import t5_finetune
+        from preliminary.t5_test import T5Evaluator
+        tokenizer = T5Tokenizer.from_pretrained(args.base_model)
+        evaluator = T5Evaluator(args=args, tokenizer=tokenizer, instructions=instructions, labels=labels)
+        
+        if 'train' in args.mode:
+            # llama_finetune(args=args, evaluator=evaluator, tokenizer=tokenizer, instructions=instructions, labels=labels)
+            t5_finetune(args=args, evaluator=evaluator, tokenizer=tokenizer, instructions=instructions, labels=labels)
+            # evaluator.test()
+        if 'test' == args.mode:
+            evaluator.test()
+
+    elif 'bert' in args.base_model.lower():  # 
+        from preliminary.bert_finetune import bert_finetune
+        from preliminary.bert_test import BERTEvaluator
+        
+        # if args.debug: args.device_id='cpu'
+        tokenizer = AutoTokenizer.from_pretrained(args.base_model)
+        # evaluator = BERTEvaluator(args=args, tokenizer=tokenizer, instructions=instructions, labels=labels)
+        
+        if 'train' in args.mode:
+            # llama_finetune(args=args, evaluator=evaluator, tokenizer=tokenizer, instructions=instructions, labels=labels)
+            bert_finetune(args=args, tokenizer=tokenizer, instructions=instructions, labels=labels)
+            # evaluator.test()
+        # if 'test' == args.mode:
+            # evaluator.test()

@@ -46,3 +46,18 @@ class Prompter(object):
 
     def get_response(self, output: str) -> str:
         return output.split(self.template["response_split"])[1].strip()
+
+    # def get_bert_inout(self, instruction, input, label): 
+    #     if input:
+    #         res = self.template["prompt_input"].format(
+    #             instruction=instruction, input=input
+    #         )
+    #     else:
+    #         res = self.template["prompt_no_input"].format(
+    #             instruction=instruction
+    #         )
+    #     if label:
+    #         res = f"{res}{label}"
+    #     if self._verbose:
+    #         print(res)
+    #     return res
