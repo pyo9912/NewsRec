@@ -4,6 +4,7 @@ import sys
 import torch
 import wandb
 from torch.utils.data import Dataset, DataLoader
+from torch.utils.data.sampler import SubsetRandomSampler
 from tqdm import tqdm
 from transformers import GenerationConfig, LlamaForCausalLM, LlamaTokenizer, T5ForConditionalGeneration
 from peft import PeftModel
@@ -104,9 +105,13 @@ class T5Evaluator:
     def prepare_dataloader(self):
         self.tokenizer.padding_side = 'left'
 
+        # Sampler for test data
+        indices = list(range(0,1000))
+        sampler = SubsetRandomSampler(indices)
+
         instructions = [self.prompter.generate_prompt(i) for i in self.instructions]
         instruction_dataset = Textdataset(self.args, instructions, self.labels, self.tokenizer)
-        dataloader = DataLoader(instruction_dataset, batch_size=self.args.eval_batch_size, shuffle=False)
+        dataloader = DataLoader(instruction_dataset, batch_size=self.args.eval_batch_size, shuffle=False, sampler=sampler)
 
         return dataloader
 
