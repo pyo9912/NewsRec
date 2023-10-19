@@ -133,7 +133,6 @@ if __name__ == '__main__':
         from preliminary.llama_finetune import llama_finetune
         from preliminary.llama_test import LLaMaEvaluator
         tokenizer = LlamaTokenizer.from_pretrained(args.base_model)
-
         evaluator = LLaMaEvaluator(args=args, tokenizer=tokenizer, restrict_decode_vocab=None, instructions=instructions, labels=labels)
 
         if 'train' in args.mode:
@@ -157,7 +156,6 @@ if __name__ == '__main__':
 
     elif 'bert' in args.base_model.lower():  # 
         from preliminary.bert_finetune import bert_finetune
-        from preliminary.bert_test import BERTEvaluator
         
         # if args.debug: args.device_id='cpu'
         tokenizer = AutoTokenizer.from_pretrained(args.base_model)

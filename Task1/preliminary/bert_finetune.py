@@ -23,17 +23,26 @@ import bitsandbytes as bnb
 ## Hit@1
 
 # <cat>
-# Epoch1: 0.770
-# Epoch2: 0.810
-# Epoch3: 0.845
+# Epoch1: 0.6492    Epoch6 : 0.8798    Epoch11: 0.9734     Epoch16: 0.9907
+# Epoch2: 0.7342    Epoch7 : 0.9059    Epoch12: 0.9797     Epoch17: 0.9916
+# Epoch3: 0.7813    Epoch8 : 0.9317    Epoch13: 0.9858     Epoch18: 0.9934
+# Epoch4: 0.8188    Epoch9 : 0.9489    Epoch14: 0.9875     Epoch19: 0.9943
+# Epoch5: 0.8512    Epoch10: 0.9630    Epoch15: 0.9892     Epoch20: 0.9950
 
 # <sub-cat>
-# Epoch1: 0.773
-# Epoch2: 0.809
-# Epoch3: 0.837
+# Epoch1: 0.6614    Epoch6 : 0.8855    Epoch11: 0.9745     Epoch16: 0.9919
+# Epoch2: 0.7337    Epoch7 : 0.9044    Epoch12: 0.9771     Epoch17: 0.9925
+# Epoch3: 0.7807    Epoch8 : 0.9280    Epoch13: 0.9848     Epoch18: 0.9936
+# Epoch4: 0.8143    Epoch9 : 0.9470    Epoch14: 0.9884     Epoch19: 0.9941
+# Epoch5: 0.8514    Epoch10: 0.9635    Epoch15: 0.9890     Epoch20: 0.9947
 
-# <subcat>
-#
+# <id>
+# Epoch1: 0.6528    Epoch6 : 0.8750    Epoch11: 0.9743     Epoch16: 0.9935
+# Epoch2: 0.7455    Epoch7 : 0.9075    Epoch12: 0.9807     Epoch17: 0.9945
+# Epoch3: 0.7864    Epoch8 : 0.9317    Epoch13: 0.9865     Epoch18: 0.9959
+# Epoch4: 0.8151    Epoch9 : 0.9530    Epoch14: 0.9893     Epoch19: 0.9966
+# Epoch5: 0.8508    Epoch10: 0.9631    Epoch15: 0.9924     Epoch20: 0.9970
+
 
 # from peft import (
 #     LoraConfig,
@@ -56,6 +65,7 @@ class BERT_cls(nn.Module):
             self.args = args
             self.bert_model = bert_model
             self.hidden_size = bert_model.base_model.config.hidden_size
+            self.id_proj = nn.Sequential(nn.Linear(self.hidden_size, self.hidden_size//2), nn.ReLU(), nn.Linear(self.hidden_size//2, len(args.id_dic_str2id)))
             self.category_proj  = nn.Sequential(nn.Linear(self.hidden_size, self.hidden_size//2), nn.ReLU(), nn.Linear(self.hidden_size//2, len(args.cat_dic_str2id))) #nn.Linear(self.hidden_size, args.goal_num)
             self.sub_category_proj = nn.Sequential(nn.Linear(self.hidden_size, self.hidden_size//2), nn.ReLU(), nn.Linear(self.hidden_size//2, len(args.sub_dic_str2id)))# nn.Linear(self.hidden_size, args.topic_num)
             # self.optimizer = torch.optim.Adam(retriever.parameters(), lr=args.lr)
@@ -78,7 +88,7 @@ def bert_finetune(
         # output_dir: str = "./lora-alpaca",
         # training hyperparams
         batch_size: int = 64,
-        num_epochs: int = 3,
+        num_epochs: int = 20,
         learning_rate: float = 1e-5,
         cutoff_len: int = 256,
         val_set_size: int = 0,
@@ -194,9 +204,16 @@ def bert_finetune(
             if add_eos_token:
                 user_prompt_len -= 1
 
+            # tokenized_full_prompt["labels"] = tokenized_full_prompt["labels"][user_prompt_len:] + [-100] * user_prompt_len  # could be sped up, probably
+            
+            # tokenized_full_prompt['id_lab'] = data_point["output"]
+            
             tokenized_full_prompt["labels"] = tokenized_full_prompt["labels"][user_prompt_len:] + [-100] * user_prompt_len  # could be sped up, probably
             tokenized_full_prompt['cat_lab'] = data_point["output"].replace('<','>').split('>')[1].strip().lower()
             tokenized_full_prompt['sub_lab'] = data_point["output"].replace('<','>').split('>')[3].strip().lower()
+            tokenized_full_prompt['id_lab'] = data_point["output"].replace('<','>').split('>')[5].strip().lower()
+            
+        
         return tokenized_full_prompt
 
     data = []
@@ -221,6 +238,9 @@ def bert_finetune(
     
     train_data = data.shuffle().map(generate_and_tokenize_prompt)
 
+    
+    args.id_dic_str2id = {v:i for i,v in enumerate(set([i['id_lab'] for i in train_data]))}
+    args.id_dic_id2str = {v:i for i,v in args.id_dic_str2id.items()}
     args.cat_dic_str2id = {v:i for i,v in enumerate(set([i['cat_lab'] for i in train_data]))}
     args.cat_dic_id2str = {v:i for i,v in args.cat_dic_str2id.items()}
     args.sub_dic_str2id = {v:i for i,v in enumerate(set([i['sub_lab'] for i in train_data]))}
@@ -235,13 +255,13 @@ def bert_finetune(
     test_dataset = BERTDataset(args, data, tokenizer)
     test_data_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
     
-    args.num_epochs = 3
+    args.num_epochs = 20
     args.lr = 1e-5
     args.device = f'{args.device_id}'
     task = args.category
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.num_epochs * len(train_data_loader), eta_min=args.lr * 0.1)
-    for epoch in range(3):
+    for epoch in range(20):
         model.train()
         inEpoch_BatchPlay(args, model, tokenizer, train_data_loader, optimizer, scheduler, epoch, task, mode='train')
 
@@ -264,15 +284,18 @@ def inEpoch_BatchPlay(args, model, tokenizer, data_loader, optimizer, scheduler,
     epoch_loss, steps = 0, 0
 
     torch.cuda.empty_cache()
-    contexts, labels, cats, subs, preds = [],[],[],[],[]
+    contexts, labels, cats, subs, ids, preds = [],[],[],[],[],[]
     for batch in tqdm(data_loader, desc=f"Epoch_{epoch}_{task:^5}_{mode:^5}", bar_format=' {l_bar} | {bar:23} {r_bar}'):
         # input_ids, attention_mask, response, goal_idx, topic_idx = [batch[i].to(args.device) for i in ["input_ids", "attention_mask", "response", 'goal_idx', 'topic_idx']]
-        input_ids, attention_mask, output, cat_idx, sub_idx = [batch[i].to(args.device) for i in ['input_ids', 'attention_mask', 'output', 'cat_idx', 'sub_idx']]
+        input_ids, attention_mask, output, cat_idx, sub_idx, id_idx = [batch[i].to(args.device) for i in ['input_ids', 'attention_mask', 'output', 'cat_idx', 'sub_idx', 'id_idx']]
         # target = goal_idx if task == 'goal' else topic_idx
         # Model Forwarding
         dialog_emb = model(input_ids=input_ids, attention_mask=attention_mask)  # [B, d]
         scores = 0.0
-        if 'sub' in task:
+        if 'id' in task:
+            scores = model.id_category_proj(dialob_emb)
+            loss = criterion(scores, id_idx)
+        elif 'sub' in task:
             scores = model.sub_category_proj(dialog_emb)
             loss = criterion(scores, sub_idx)
         else:
@@ -292,20 +315,28 @@ def inEpoch_BatchPlay(args, model, tokenizer, data_loader, optimizer, scheduler,
             # if 'sub' in task: results = [args.sub_dic_id2str[i] for i in batch_top_results]
             # else: results = [args.cat_dic_id2str[i] for i in batch_top_results]
             preds.extend(batch_top_results)
+            ids.extend([int(i) for i in id_idx.data])
             cats.extend([int(i) for i in cat_idx.data])
             subs.extend([int(i) for i in sub_idx.data])
             # for i in zip(batch_top_results):
             #     ground = 
     if 'test' == mode:
-        ground_truth = subs if 'sub' in task else cats
-        generated_results = [f"gen: {args.cat_dic_id2str[int(p)]} | lab: {args.cat_dic_id2str[q]}" for p,q in zip(preds, ground_truth)]
+        if 'id' in task:
+            ground_truth = ids
+            generated_results = [f"gen: {args.id_dic_id2str[int(p)]} | lab: {args.id_dic_id2str[q]}" for p,q in zip(preds, ground_truth)]
+        elif 'sub' in task:
+            ground_truth = subs
+            generated_results = [f"gen: {args.sub_dic_id2str[int(p)]} | lab: {args.sub_dic_id2str[q]}" for p,q in zip(preds, ground_truth)]
+        else:
+            ground_truth = cats
+            generated_results = [f"gen: {args.cat_dic_id2str[int(p)]} | lab: {args.cat_dic_id2str[q]}" for p,q in zip(preds, ground_truth)]
         if args.write:
             for i in generated_results:
                 args.log_file.write(json.dumps(i, ensure_ascii=False) + '\n')
         results = [int(p)==g for p,g in zip(preds, ground_truth)] 
         hit_score =  sum(results) / len(results)
-        print(f'Hit@1: {hit_score:.3f}')
-        print(f'Total Count: {len(preds):.3f}')
+        print(f'Hit@1: {hit_score:.4f}')
+        print(f'Total Count: {len(preds):.4f}')
         # elif 'test' == mode:
         #     if 'sub' in task:
         #         sub_word = args.sub_dic_id2str[]
@@ -394,10 +425,14 @@ class BERTDataset(torch.utils.data.Dataset):
 
         labels = self.tokenizer(output, max_length=self.target_max_length, padding='max_length', truncation=True)['input_ids']
         context_batch['output'] = labels
+
+        
         cat = output.replace('<','>').split('>')[1].strip().lower()
         sub = output.replace('<','>').split('>')[3].strip().lower()
+        id = output.replace('<','>').split('>')[5].strip().lower()
         context_batch['cat_idx'] = self.args.cat_dic_str2id[cat]  # index로 바꿈
         context_batch['sub_idx'] = self.args.sub_dic_str2id[sub]  # index로 바꿈
+        context_batch['id_idx'] = self.args.id_dic_str2id[id]  # index로 바꿈
         for k, v in context_batch.items():
             if not isinstance(v, torch.Tensor):
                 context_batch[k] = torch.as_tensor(v, device=self.args.device)

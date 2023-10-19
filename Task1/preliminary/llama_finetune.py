@@ -72,9 +72,9 @@ def llama_finetune(
         # training hyperparams
         batch_size: int = 128,
         num_epochs: int = 5, # 3
-        learning_rate: float = 1e-5,
+        learning_rate: float = 1e-4,
         cutoff_len: int = 256,
-        val_set_size: int = 0,
+        val_set_size: int = 0, # 0
         # lora hyperparams
         lora_r: int = 8,
         lora_alpha: int = 16,
@@ -101,23 +101,7 @@ def llama_finetune(
     batch_size = args.batch_size
     gradient_accumulation_steps = args.num_device  # update the model's weights once every gradient_accumulation_steps batches instead of updating the weights after every batch.
     per_device_train_batch_size = batch_size // args.num_device
-    prompt_template_name = "alpaca_legacy"
-    
-    checkpoint_dir = os.path.join(args.home,"lora-alpaca")
-    if not checkpoint_dir:
-        resume_from_checkpoint = None
-    else:
-        all_files = os.listdir(checkpoint_dir)
-        # print(all_files)
-        all_files = [f for f in all_files if "checkpoint" in f]
-        if not all_files:
-            resume_from_checkpoint = None
-        else:
-            all_files.sort(key=lambda x: os.path.getmtime(os.path.join(checkpoint_dir, x)), reverse=True)
-            # print(all_files)
-            most_recent_checkpoint = os.path.join(checkpoint_dir, all_files[0])
-            resume_from_checkpoint = most_recent_checkpoint
-            # print(resume_from_checkpoint)
+    prompt_template_name = "prompt"
 
     if int(os.environ.get("LOCAL_RANK", 0)) == 0:
         print(
@@ -264,6 +248,7 @@ def llama_finetune(
     else:
         train_data = data.shuffle().map(generate_and_tokenize_prompt)
         val_data = None
+
 
     model = LlamaForCausalLM.from_pretrained(
         base_model,

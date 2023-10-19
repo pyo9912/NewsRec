@@ -1,0 +1,6 @@
+{
+    "description": "Legacy template, used by Original Alpaca repository.",
+    "prompt_input": "### Instruction:\n{instruction}\n\n### Input:\n{input}\n\n### Response:", 
+    "prompt_no_input": "### Instruction:\n{instruction}\n\n### Response:",
+    "response_split": "### Response:"
+}

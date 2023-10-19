@@ -79,7 +79,7 @@ class LLaMaEvaluator:
             else:
                 all_files = os.listdir(checkpoint_dir)
                 # print(all_files)
-                all_files = [f for f in all_files if "RQ6_E0" in f]
+                all_files = [f for f in all_files if f"rq{self.args.rq_num}_E{self.args.test_epoch_num}" in f]
                 if not all_files:
                     resume_from_checkpoint = None
                 else:
@@ -123,7 +123,7 @@ class LLaMaEvaluator:
 
         instructions = [self.prompter.generate_prompt(i) for i in self.instructions]
         instruction_dataset = Textdataset(self.args, instructions, self.labels, self.tokenizer)
-        dataloader = DataLoader(instruction_dataset, batch_size=self.args.eval_batch_size, shuffle=False, sampler=sampler)
+        dataloader = DataLoader(instruction_dataset, batch_size=self.args.eval_batch_size, shuffle=False)
 
         return dataloader
 
