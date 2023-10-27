@@ -72,7 +72,7 @@ def t5_finetune(
         # output_dir: str = "./lora-alpaca",
         # training hyperparams
         batch_size: int = 128,
-        num_epochs: int = 3,
+        num_epochs: int = 5,
         learning_rate: float = 3e-4,
         cutoff_len: int = 256,
         val_set_size: int = 0,
@@ -94,7 +94,7 @@ def t5_finetune(
         wandb_watch: str = "",  # options: false | gradients | all
         wandb_log_model: str = "",  # options: false | true
         resume_from_checkpoint: str = None,  # either training checkpoint or final adapter
-        prompt_template_name: str = "prompt",  # The prompt template to use, will default to alpaca.
+        prompt_template_name: str = "alpaca_legacy",  # The prompt template to use, will default to alpaca.
 ):
     output_dir = os.path.join(args.home,"T5")
     checkPath(output_dir)

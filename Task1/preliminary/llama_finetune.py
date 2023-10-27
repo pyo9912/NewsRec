@@ -72,7 +72,7 @@ def llama_finetune(
         # training hyperparams
         batch_size: int = 128,
         num_epochs: int = 5, # 3
-        learning_rate: float = 1e-4,
+        learning_rate: float = 1e-5,
         cutoff_len: int = 256,
         val_set_size: int = 0, # 0
         # lora hyperparams

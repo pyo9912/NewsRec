@@ -19,6 +19,10 @@ title2id_template = ["Following text is a title of the news. <%s>. What is the I
                  "Following text is a title of the news. <%s>. Guess the ID of the news.",
                  "Following text is a title of the news. <%s>. Generate the ID of the news."]
                  
+title2id_template2 = ["The ID of the news <%s> is <%s>. What is the ID of the news <%s>?",
+                 "The ID of the news <%s> is <%s>. Guess the ID of the news <%s>.",
+                 "The ID of the news <%s> is <%s>. Generate the ID of the news <%s>."]
+
 title2cat_template = ["Following text is a title of the news. <%s>. What is the category and subcategory of the news?",
                       "Following text is a title of the news. <%s>, Guess the category and subcategory of the news.",
                       "Following text is a title of the news. <%s>, Generate the category and subcategory of the news."]
@@ -284,6 +288,30 @@ def create_rq7(args):
     result_f.close()
     f.close()
 
+def create_rq8(args):
+    args.rq_num = 8
+    input_dir = os.path.join(args.home,"Task1")
+    with open(os.path.join(input_dir,"allNewsData.json")) as f:
+        json_object = json.load(f)
+
+    result_list = []
+    for i in range(len(json_object)):
+        news_vals = list(json_object[i].values())
+        news_id = news_vals[0].split('N')[1]
+        news_title = news_vals[1]
+        news_cat = news_vals[2]
+        news_subcat = news_vals[3]
+        # 각 type의 template마다 생성
+        title2id_tpl = title2id_template2[0]%(news_title, news_id, news_title)
+        result_list.append({"Question":title2id_tpl, "Answer":news_id})
+
+    output_dir = os.path.join(args.home,"Task1/data/save")
+    checkPath(output_dir)
+    with open(os.path.join(output_dir,f"rq{args.rq_num}.json"),'w',encoding='utf-8') as result_f:
+        result_f.write(json.dumps(result_list, indent=4))
+    result_f.close()
+    f.close()
+
 
 if __name__ == "__main__":
     args = parse_args()
@@ -295,4 +323,5 @@ if __name__ == "__main__":
     # create_test_rq3(args=args)
     # create_rq4(args=args)
     # create_rq5(args=args)
-    create_rq7(args=args)
+    # create_rq7(args=args)
+    create_rq8(args=args)

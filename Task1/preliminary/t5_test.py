@@ -72,6 +72,7 @@ class T5Evaluator:
                 all_files = os.listdir(checkpoint_dir)
                 # print(all_files)
                 all_files = [f for f in all_files if f"rq{self.args.rq_num}_E{self.args.test_epoch_num}" in f]
+                # all_files = [f for f in all_files if f"checkpoint" in f]
                 if not all_files:
                     resume_from_checkpoint = None
                 else:
