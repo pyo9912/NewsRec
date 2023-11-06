@@ -94,9 +94,9 @@ def dsi_finetune(
         output_dir: str = "",
         cache_dir: str = "",
         # training hyperparams
-        batch_size: int = 32,
-        num_epochs: int = 300,
-        learning_rate: float = 5e-4,
+        batch_size: int = 64,
+        num_epochs: int = 30,
+        learning_rate: float = 1e-4,
         cutoff_len: int = 128,
         val_set_size: int = 0,
         # llm hyperparmas
@@ -190,7 +190,7 @@ def dsi_finetune(
     training_args = TrainingArguments(
         output_dir=output_dir,
         learning_rate=learning_rate,  # 0.0005,
-        warmup_steps=len(train_data) / 60,
+        warmup_steps=100,#len(train_data) / 60,
         # weight_decay=0.01,
         per_device_train_batch_size=per_device_train_batch_size,
         per_device_eval_batch_size=args.eval_batch_size,

@@ -26,7 +26,7 @@
 # python Task1.py --base_model=google/flan-t5-large --batch_size=8 --eval_batch_size=4 --rq_num=4 --mode=train --log_name=rq4 --sample_num=100
 # python Task1.py --base_model=google/flan-t5-large --batch_size=8 --eval_batch_size=4 --rq_num=4 --mode=test --test_epoch_num=1 --log_name=rq4 --sample_num=100 --write
 ## RQ7: title -> ID
-python Task1.py --base_model=google/flan-t5-large --batch_size=8 --eval_batch_size=4 --rq_num=7 --mode=train --log_name=rq7 --sample_num=100 
+# python Task1.py --base_model=google/flan-t5-large --batch_size=8 --eval_batch_size=4 --rq_num=7 --mode=train --log_name=rq7 --sample_num=100 
 # python Task1.py --base_model=google/flan-t5-large --batch_size=8 --eval_batch_size=4 --rq_num=7 --mode=test --test_epoch_num=5 --sample_num=1000 --log_name=rq7 --write
 
 
@@ -43,5 +43,5 @@ python Task1.py --base_model=google/flan-t5-large --batch_size=8 --eval_batch_si
 ### DSI
 
 ## RQ2: title -> ID 
-# CUDA_VISIBLE_DEVICES=1  python Task1.py --base_model=t5-large --device_id=1 --batch_size=32 --eval_batch_size=4 --rq_num=7 --log_name=r7 --mode=train --sample_num=10000  --write
-# python Task1.py --base_model=t5-large --device_id=1 --batch_size=32 --eval_batch_size=4 --rq_num=7 --log_name=r7 --mode=test --sample_num=10000 --write
+CUDA_VISIBLE_DEVICES=1  python Task1.py --base_model=t5-large --device_id=1 --batch_size=32 --eval_batch_size=4 --rq_num=17 --log_name=r17 --mode=train --sample_num=5000  --write
+# python Task1.py --base_model=t5-large --device_id=1 --batch_size=32 --eval_batch_size=4 --rq_num=17 --log_name=r17 --mode=test --sample_num=5000 --write
