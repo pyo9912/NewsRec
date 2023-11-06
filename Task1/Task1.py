@@ -16,6 +16,7 @@ from pytz import timezone
 
 from utils.data import read_data
 from utils.parser import parse_args
+from utils.parser import checkPath
 
 
 class RQ(Dataset):
@@ -110,26 +111,8 @@ if __name__ == '__main__':
 
     # if 'gpt' in args.base_model.lower():
     #     chatgpt_test(args=args, instructions=instructions, labels=labels)
-
-    # ### Restrict decode vocab
-    # SPIECE_UNDERLINE = "▁"
-    # INT_TOKEN_IDS = []
-    # for token, id in tokenizer.get_vocab().items():
-    #     if token[0] == SPIECE_UNDERLINE:
-    #         if token[1:].isdigit():
-    #             INT_TOKEN_IDS.append(id)
-    #     if token == SPIECE_UNDERLINE:
-    #         INT_TOKEN_IDS.append(id)
-    #     elif token.isdigit():
-    #         INT_TOKEN_IDS.append(id)
-    # INT_TOKEN_IDS.append(tokenizer.eos_token_id)
-
-
-    # def restrict_decode_vocab(batch_idx, prefix_beam):
-    #     return INT_TOKEN_IDS
-    # ###
     
-    if 'llama' in args.base_model.lower():
+    if 'llama' in args.base_model.lower(): # llama
         from preliminary.llama_finetune import llama_finetune
         from preliminary.llama_test import LLaMaEvaluator
         tokenizer = LlamaTokenizer.from_pretrained(args.base_model)
@@ -141,7 +124,7 @@ if __name__ == '__main__':
         if 'test' == args.mode:
             evaluator.test()
 
-    elif 'google' in args.base_model.lower():  # llama, google
+    elif 'google' in args.base_model.lower():  # google-T5
         from preliminary.t5_finetune import t5_finetune
         from preliminary.t5_test import T5Evaluator
         tokenizer = T5Tokenizer.from_pretrained(args.base_model)
@@ -154,9 +137,8 @@ if __name__ == '__main__':
         if 'test' == args.mode:
             evaluator.test()
 
-    elif 'bert' in args.base_model.lower():  # 
+    elif 'bert' in args.base_model.lower():  # BERT
         from preliminary.bert_finetune import bert_finetune
-        
         # if args.debug: args.device_id='cpu'
         tokenizer = AutoTokenizer.from_pretrained(args.base_model)
         # evaluator = BERTEvaluator(args=args, tokenizer=tokenizer, instructions=instructions, labels=labels)
@@ -167,3 +149,36 @@ if __name__ == '__main__':
             # evaluator.test()
         # if 'test' == args.mode:
             # evaluator.test()
+
+    elif 't5' in args.base_model.lower(): # T5-dsi
+        from preliminary.dsi_finetune import dsi_finetune
+        from preliminary.dsi_test import DsiEvaluator
+
+        cache_dir = os.path.join(args.home, "cache_save/DSI")
+        checkPath(cache_dir)
+
+        tokenizer = T5Tokenizer.from_pretrained(args.base_model,cache_dir=cache_dir)
+        evaluator = DsiEvaluator(args=args, tokenizer=tokenizer, instructions=instructions, labels=labels)
+
+        ### Restrict decode vocab
+        SPIECE_UNDERLINE = "▁"
+        INT_TOKEN_IDS = []
+        for token, id in tokenizer.get_vocab().items():
+            if token[0] == SPIECE_UNDERLINE:
+                if token[1:].isdigit():
+                    INT_TOKEN_IDS.append(id)
+            if token == SPIECE_UNDERLINE:
+                INT_TOKEN_IDS.append(id)
+            elif token.isdigit():
+                INT_TOKEN_IDS.append(id)
+        INT_TOKEN_IDS.append(tokenizer.eos_token_id)
+
+
+        def restrict_decode_vocab(batch_idx, prefix_beam):
+            return INT_TOKEN_IDS
+        ###
+
+        if 'train' in args.mode:
+            dsi_finetune(args=args, tokenizer=tokenizer, restrict_decode_vocab=restrict_decode_vocab, instructions=instructions, labels=labels)
+        if 'test' == args.mode:
+            evaluator.test()

@@ -72,7 +72,7 @@ def t5_finetune(
         # output_dir: str = "./lora-alpaca",
         # training hyperparams
         batch_size: int = 128,
-        num_epochs: int = 5,
+        num_epochs: int = 30,
         learning_rate: float = 3e-4,
         cutoff_len: int = 256,
         val_set_size: int = 0,
@@ -96,12 +96,13 @@ def t5_finetune(
         resume_from_checkpoint: str = None,  # either training checkpoint or final adapter
         prompt_template_name: str = "alpaca_legacy",  # The prompt template to use, will default to alpaca.
 ):
-    output_dir = os.path.join(args.home,"T5")
+    output_dir = os.path.join(args.home,"model_save/T5")
     checkPath(output_dir)
     base_model = args.base_model
     batch_size = args.batch_size
     gradient_accumulation_steps = args.num_device  # update the model's weights once every gradient_accumulation_steps batches instead of updating the weights after every batch.
     per_device_train_batch_size = batch_size // args.num_device
+    prompt_template_name = "prompt"
 
     if int(os.environ.get("LOCAL_RANK", 0)) == 0:
         print(
@@ -207,8 +208,10 @@ def t5_finetune(
     for inst, lab in zip(instructions, labels):
         data.append({"instruction": inst, "input": "", "output": lab})
 
+    if args.debug: data = data[:100]
+    sample_num = int(args.sample_num)
+    data = data[:sample_num]
     data = Dataset.from_pandas(pd.DataFrame(data))
-
     tokenizer.pad_token_id = (
         0  # unk. we want this to be different from the eos token
     )
@@ -280,9 +283,10 @@ def t5_finetune(
     # if torch.__version__ >= "2" and sys.platform != "win32":
     #     model = torch.compile(model)
 
+    print(train_data[0])
     trainer.train(resume_from_checkpoint=None)
 
-    # model.save_pretrained(output_dir)
+    model.save_pretrained(output_dir)
 
     print(
         "\n If there's a warning about missing keys above, please disregard :)"

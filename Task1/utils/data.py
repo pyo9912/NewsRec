@@ -21,4 +21,3 @@ def read_data(args):
     for t_input, t_output in zip(question, answer):
         data_samples.append((t_input, t_output))
     return data_samples
-

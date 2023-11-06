@@ -280,7 +280,7 @@ def create_rq7(args):
         news_subcat = news_vals[3]
         # 각 type의 template마다 생성
         title2id_tpl = title2id_template[0]%(news_title)
-        result_list.append({"Question":title2id_tpl, "Answer":int(news_id)})
+        result_list.append({"Question":str(news_title), "Answer":str(news_id)})
     output_dir = os.path.join(args.home,"Task1/data/train")
     checkPath(output_dir)
     with open(os.path.join(output_dir,f"rq{args.rq_num}.json"),'w',encoding='utf-8') as result_f:
@@ -323,5 +323,12 @@ if __name__ == "__main__":
     # create_test_rq3(args=args)
     # create_rq4(args=args)
     # create_rq5(args=args)
-    # create_rq7(args=args)
-    create_rq8(args=args)
+    create_rq7(args=args)
+    # create_rq8(args=args)
+
+
+    # line 13254 sample
+    # {
+    #     "Question": "20 Crazy Cleaning Tips That Actually Work",
+    #     "Answer": "61626"
+    # },

@@ -65,7 +65,7 @@ class T5Evaluator:
         ), "Please specify a --base_model, e.g. --base_model='huggyllama/llama-7b'"
 
         if device == "cuda":
-            checkpoint_dir = os.path.join(self.args.home,"T5")
+            checkpoint_dir = os.path.join(self.args.home,"model_save/T5")
             if not checkpoint_dir:
                 resume_from_checkpoint = None
             else:
@@ -105,14 +105,13 @@ class T5Evaluator:
 
     def prepare_dataloader(self):
         self.tokenizer.padding_side = 'left'
-
-        # Sampler for test data
-        indices = list(range(0,1000))
-        sampler = SubsetRandomSampler(indices)
-
+        sample_num = int(self.args.sample_num)
         instructions = [self.prompter.generate_prompt(i) for i in self.instructions]
-        instruction_dataset = Textdataset(self.args, instructions, self.labels, self.tokenizer)
-        dataloader = DataLoader(instruction_dataset, batch_size=self.args.eval_batch_size, shuffle=False, sampler=sampler)
+        instructions = instructions[:sample_num]
+        labels = self.labels
+        labels = labels[:sample_num]
+        instruction_dataset = Textdataset(self.args, instructions, labels, self.tokenizer)
+        dataloader = DataLoader(instruction_dataset, batch_size=self.args.eval_batch_size, shuffle=False)
 
         return dataloader
 
@@ -171,43 +170,43 @@ class T5Evaluator:
             # print("#################################################")
             # generated_results.extend(responses)
             for output, label in zip(responses, labels):
-                if '<' in label:
-                    ### Mapping 
-                    cat_lab = label.replace('<','>').split('>')[1].strip().lower()
-                    sub_lab = label.replace('<','>').split('>')[3].strip().lower()
-                    # id_lab = label.replace('<','>').split('>')[5].strip().lower()
+                # if '<' in label:
+                #     ### Mapping 
+                #     cat_lab = label.replace('<','>').split('>')[1].strip().lower()
+                #     sub_lab = label.replace('<','>').split('>')[3].strip().lower()
+                #     # id_lab = label.replace('<','>').split('>')[5].strip().lower()
                     
 
-                    ### Scoring
-                    if cat_lab in output and sub_lab in output:
-                        cat_hit += 1.0
-                        sub_hit += 1.0
-                        hit += 1.0
+                #     ### Scoring
+                #     if cat_lab in output and sub_lab in output:
+                #         cat_hit += 1.0
+                #         sub_hit += 1.0
+                #         hit += 1.0
 
-                    elif cat_lab in output:
-                        cat_hit += 1.0
+                #     elif cat_lab in output:
+                #         cat_hit += 1.0
                     
-                    elif sub_lab in output:
-                        sub_hit += 1.0
+                #     elif sub_lab in output:
+                #         sub_hit += 1.0
 
-                    cnt += 1.0
+                #     cnt += 1.0
                     
-                    cat_hit_ratio = cat_hit / cnt
-                    sub_hit_ratio = sub_hit / cnt
+                #     cat_hit_ratio = cat_hit / cnt
+                #     sub_hit_ratio = sub_hit / cnt
                     
-                    hit_ratio = hit / cnt
-                    # args.log_file.write(json.dumps({'GEN': output, 'ANSWER': label, 'AVG_HIT': hit_ratio}, ensure_ascii=False) + '\n')
-                    # generated_results.append({'GEN': output, 'ANSWER': label, 'AVG_HIT': hit_ratio})
-                    generated_results.append({'GEN': output, 'ANSWER': label, 'CAT_HIT' : cat_hit_ratio, 'SUB_HIT' : sub_hit_ratio, 'AVG_HIT': hit_ratio})
-                else:
+                #     hit_ratio = hit / cnt
+                #     # args.log_file.write(json.dumps({'GEN': output, 'ANSWER': label, 'AVG_HIT': hit_ratio}, ensure_ascii=False) + '\n')
+                #     # generated_results.append({'GEN': output, 'ANSWER': label, 'AVG_HIT': hit_ratio})
+                #     generated_results.append({'GEN': output, 'ANSWER': label, 'CAT_HIT' : cat_hit_ratio, 'SUB_HIT' : sub_hit_ratio, 'AVG_HIT': hit_ratio})
+                # else:
                 
-                    if label.lower() in output.lower():
-                        hit += 1.0
-                    cnt += 1.0
-                    hit_ratio = hit / cnt
-                    # args.log_file.write(json.dumps({'GEN': output, 'ANSWER': label, 'AVG_HIT': hit_ratio}, ensure_ascii=False) + '\n')
-                    # generated_results.append({'GEN': output, 'ANSWER': label, 'AVG_HIT': hit_ratio})
-                    generated_results.append({'GEN': output, 'ANSWER': label, 'AVG_HIT': hit_ratio})
+                if label.lower() in output.lower():
+                    hit += 1.0
+                cnt += 1.0
+                hit_ratio = hit / cnt
+                # args.log_file.write(json.dumps({'GEN': output, 'ANSWER': label, 'AVG_HIT': hit_ratio}, ensure_ascii=False) + '\n')
+                # generated_results.append({'GEN': output, 'ANSWER': label, 'AVG_HIT': hit_ratio})
+                generated_results.append({'GEN': output, 'ANSWER': label, 'AVG_HIT': hit_ratio})
 
             if self.args.write:
                 for i in generated_results:

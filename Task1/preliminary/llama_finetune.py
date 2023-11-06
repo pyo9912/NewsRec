@@ -71,7 +71,7 @@ def llama_finetune(
         output_dir: str = "",
         # training hyperparams
         batch_size: int = 128,
-        num_epochs: int = 5, # 3
+        num_epochs: int = 30, # 3
         learning_rate: float = 1e-5,
         cutoff_len: int = 256,
         val_set_size: int = 0, # 0
@@ -95,7 +95,7 @@ def llama_finetune(
         resume_from_checkpoint: str = None,  # either training checkpoint or final adapter
         prompt_template_name: str = "alpaca",  # The prompt template to use, will default to alpaca.
 ):
-    output_dir = os.path.join(args.home,"lora-alpaca")
+    output_dir = os.path.join(args.home,"model_save/LLaMa")
     checkPath(output_dir)
     base_model = args.base_model
     batch_size = args.batch_size
@@ -233,6 +233,8 @@ def llama_finetune(
     for inst, lab in zip(instructions, labels):
         data.append({"instruction": inst, "input": "", "output": lab})
     # print(data[0])
+    sample_num = args.sample_num
+    data = data[:int(sample_num)]
     data = Dataset.from_pandas(pd.DataFrame(data))
 
     if val_set_size > 0:
